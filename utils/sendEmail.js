@@ -3,9 +3,7 @@ const nodemailer = require("nodemailer");
 const transporter = nodemailer.createTransport({
 
     host: "smtp-relay.brevo.com",
-
     port: 587,
-
     secure: false,
 
     auth: {
@@ -25,16 +23,39 @@ const transporter = nodemailer.createTransport({
 
 });
 
+// SMTP Connection Test
+transporter.verify((error, success) => {
+
+    if (error) {
+        console.log("❌ SMTP Verify Error:", error);
+    } else {
+        console.log("✅ SMTP Server Ready");
+    }
+
+});
+
 const sendEmail = async (to, subject, text) => {
 
-    await transporter.sendMail({
+    try {
 
-        from: process.env.EMAIL_USER,
-        to,
-        subject,
-        text
+        await transporter.sendMail({
 
-    });
+            from: `FixSo <${process.env.SENDER_EMAIL}>`,
+            to: to,
+            subject: subject,
+            text: text
+
+        });
+
+        console.log("✅ Email Sent Successfully");
+
+    } catch (error) {
+
+        console.error("❌ Email Error:", error);
+
+        throw error;
+
+    }
 
 };
 
