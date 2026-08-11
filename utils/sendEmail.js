@@ -1,81 +1,59 @@
-const nodemailer = require("nodemailer");
-
-const transporter = nodemailer.createTransport({
-
-    host: "smtp-relay.brevo.com",
-
-    port: 587,
-
-    secure: false,
-
-    family: 4,
-
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-    },
-
-    requireTLS: true,
-
-    tls: {
-        rejectUnauthorized: false
-    },
-
-    connectionTimeout: 60000,
-    greetingTimeout: 60000,
-    socketTimeout: 60000
-
-});
-
-
-// ================================
-// SMTP CONNECTION TEST
-// ================================
-
-transporter.verify((error, success) => {
-
-    if (error) {
-
-        console.error("❌ SMTP Verify Error:", error);
-
-    } else {
-
-        console.log("✅ SMTP Server Ready");
-
-    }
-
-});
-
-
-// ================================
-// SEND EMAIL
-// ================================
-
 const sendEmail = async (to, subject, text) => {
 
     try {
 
-        console.log("📧 Starting email send...");
+        console.log("📧 Starting Brevo API email...");
         console.log("📧 To:", to);
         console.log("📧 From:", process.env.SENDER_EMAIL);
 
-        const info = await transporter.sendMail({
+        const response = await fetch(
+            "https://api.brevo.com/v3/smtp/email",
+            {
+                method: "POST",
 
-            from: `FixSo <${process.env.SENDER_EMAIL}>`,
+                headers: {
+                    "accept": "application/json",
+                    "api-key": process.env.BREVO_API_KEY,
+                    "content-type": "application/json"
+                },
 
-            to: to,
+                body: JSON.stringify({
 
-            subject: subject,
+                    sender: {
+                        name: "FixSo",
+                        email: process.env.SENDER_EMAIL
+                    },
 
-            text: text
+                    to: [
+                        {
+                            email: to
+                        }
+                    ],
 
-        });
+                    subject: subject,
+
+                    textContent: text
+
+                })
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+
+            console.error("❌ Brevo API Error:", data);
+
+            throw new Error(
+                data.message || "Brevo email sending failed"
+            );
+
+        }
 
         console.log("✅ Email Sent Successfully");
+        console.log("📨 Brevo Response:", data);
 
-        console.log("📨 Message ID:", info.messageId);
-
-        return info;
+        return data;
 
     } catch (error) {
 
@@ -86,6 +64,5 @@ const sendEmail = async (to, subject, text) => {
     }
 
 };
-
 
 module.exports = sendEmail;
