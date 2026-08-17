@@ -121,14 +121,7 @@ const bookingValidation = [
         .withMessage("Pincode is required.")
         .bail()
         .isPostalCode("IN")
-        .withMessage("Invalid Indian Pincode."),
-
-    body("totalAmount")
-        .notEmpty()
-        .withMessage("Total Amount is required.")
-        .bail()
-        .isNumeric()
-        .withMessage("Total Amount must be a number.")
+        .withMessage("Invalid Indian Pincode.")
 
 ];
 

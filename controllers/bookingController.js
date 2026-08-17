@@ -1,4 +1,5 @@
 const Booking = require("../models/Booking");
+const Service = require("../models/Service");
 
 const createBooking = async (req, res) => {
 
@@ -12,16 +13,96 @@ const createBooking = async (req, res) => {
             phone,
             address,
             city,
-            pincode,
-            totalAmount
+            pincode
         } = req.body;
 
+        // Logged-in user
         const user = req.user.id;
+
+        // ===============================
+        // 1. Check Service ID
+        // ===============================
+
+        const serviceData = await Service.findById(service);
+
+        if (!serviceData) {
+            return res.status(404).json({
+                success: false,
+                message: "Service not found."
+            });
+        }
+
+        // ===============================
+        // 2. Check Service Active
+        // ===============================
+
+        if (!serviceData.isActive) {
+            return res.status(400).json({
+                success: false,
+                message: "This service is currently unavailable."
+            });
+        }
+
+        // ===============================
+        // 3. Validate Booking Date
+        // ===============================
+
+        const selectedDate = new Date(bookingDate);
+
+        if (isNaN(selectedDate.getTime())) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid booking date."
+            });
+        }
+
+        const today = new Date();
+
+        today.setHours(0, 0, 0, 0);
+        selectedDate.setHours(0, 0, 0, 0);
+
+        if (selectedDate < today) {
+            return res.status(400).json({
+                success: false,
+                message: "Booking date cannot be in the past."
+            });
+        }
+
+        // ===============================
+        // 4. Check Duplicate Booking
+        // ===============================
+
+        const existingBooking = await Booking.findOne({
+            user,
+            service,
+            bookingDate: selectedDate,
+            bookingTime,
+            status: {
+                $nin: ["Cancelled"]
+            }
+        });
+
+        if (existingBooking) {
+            return res.status(409).json({
+                success: false,
+                message: "You already have a booking for this service at this date and time."
+            });
+        }
+
+        // ===============================
+        // 5. Backend Calculates Amount
+        // ===============================
+
+        const totalAmount = serviceData.price;
+
+        // ===============================
+        // 6. Create Booking
+        // ===============================
 
         const booking = await Booking.create({
             user,
             service,
-            bookingDate,
+            bookingDate: selectedDate,
             bookingTime,
             customerName,
             phone,
@@ -31,17 +112,25 @@ const createBooking = async (req, res) => {
             totalAmount
         });
 
-        res.status(201).json({
+        // ===============================
+        // 7. Return Booking
+        // ===============================
+
+        const populatedBooking = await Booking.findById(booking._id)
+            .populate("user", "fullName email phone")
+            .populate("service", "name category price image duration");
+
+        return res.status(201).json({
             success: true,
             message: "Booking Created Successfully",
-            data: booking
+            data: populatedBooking
         });
 
     } catch (error) {
 
-        console.error(error);
+        console.error("Create Booking Error:", error);
 
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             message: "Internal Server Error"
         });
