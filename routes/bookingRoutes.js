@@ -10,7 +10,8 @@ const {
     getBookingById,
     updateBookingStatus,
     deleteBooking,
-    assignTechnician
+    assignTechnician,
+    cancelBooking
 } = require("../controllers/bookingController");
 
 const {
@@ -65,5 +66,10 @@ router.put(
     adminOnly,
     assignTechnician
 );
-
+// Cancel Booking (Customer / Admin)
+router.put(
+    "/:id/cancel",
+    protect,
+    cancelBooking
+);
 module.exports = router;
