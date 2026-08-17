@@ -320,11 +320,109 @@ const assignTechnician = async (req, res) => {
     }
 
 };
+
+const cancelBooking = async (req, res) => {
+
+    try {
+
+        const booking = await Booking.findById(req.params.id);
+
+        if (!booking) {
+            return res.status(404).json({
+                success: false,
+                message: "Booking not found."
+            });
+        }
+
+        // ==========================================
+        // 1. User can cancel only their own booking
+        // ==========================================
+
+        if (
+            booking.user.toString() !== req.user.id &&
+            req.user.role !== "admin"
+        ) {
+            return res.status(403).json({
+                success: false,
+                message: "You are not allowed to cancel this booking."
+            });
+        }
+
+        // ==========================================
+        // 2. Already cancelled
+        // ==========================================
+
+        if (booking.status === "Cancelled") {
+            return res.status(400).json({
+                success: false,
+                message: "Booking is already cancelled."
+            });
+        }
+
+        // ==========================================
+        // 3. Completed booking cannot be cancelled
+        // ==========================================
+
+        if (booking.status === "Completed") {
+            return res.status(400).json({
+                success: false,
+                message: "Completed booking cannot be cancelled."
+            });
+        }
+
+        // ==========================================
+        // 4. Started booking cannot be cancelled
+        // ==========================================
+
+        if (booking.status === "Started") {
+            return res.status(400).json({
+                success: false,
+                message: "Started booking cannot be cancelled."
+            });
+        }
+
+        // ==========================================
+        // 5. Cancel booking
+        // ==========================================
+
+        booking.status = "Cancelled";
+
+        await booking.save();
+
+        // ==========================================
+        // 6. Return updated booking
+        // ==========================================
+
+        const updatedBooking = await Booking.findById(booking._id)
+            .populate("user", "fullName email phone")
+            .populate("service", "name category price image duration")
+            .populate("technician", "fullName phone specialization");
+
+        return res.status(200).json({
+            success: true,
+            message: "Booking Cancelled Successfully",
+            data: updatedBooking
+        });
+
+    } catch (error) {
+
+        console.error("Cancel Booking Error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Internal Server Error"
+        });
+
+    }
+
+};
+
 module.exports = {
     createBooking,
     getAllBookings,
     getBookingById,
     updateBookingStatus,
     deleteBooking,
-    assignTechnician
+    assignTechnician,
+    cancelBooking
 };
