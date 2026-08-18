@@ -1,5 +1,7 @@
 const Booking = require("../models/Booking");
 const Service = require("../models/Service");
+const User = require("../models/User");
+const Technician = require("../models/Technician");
 
 const createBooking = async (req, res) => {
 
@@ -322,25 +324,7 @@ const assignTechnician = async (req, res) => {
 };
 
 const updateTechnicianJobStatus = async (req, res) => {
-
     try {
-
-        const { status } = req.body;
-
-        // ==========================================
-        // 1. Only allowed statuses
-        // ==========================================
-
-        if (!["Started", "Completed"].includes(status)) {
-            return res.status(400).json({
-                success: false,
-                message: "Invalid job status."
-            });
-        }
-
-        // ==========================================
-        // 2. Find booking
-        // ==========================================
 
         const booking = await Booking.findById(req.params.id);
 
@@ -351,12 +335,42 @@ const updateTechnicianJobStatus = async (req, res) => {
             });
         }
 
-        // ==========================================
-        // 3. Check technician assignment
-        // ==========================================
+        // Technician hi apni assigned booking update kare
+        if (req.user.role !== "technician") {
+            return res.status(403).json({
+                success: false,
+                message: "Only technician can update job status."
+            });
+        }
+
+        // Booking me technician assigned hai ya nahi
+        if (!booking.technician) {
+            return res.status(400).json({
+                success: false,
+                message: "No technician assigned to this booking."
+            });
+        }
+
+        // Logged-in User ka technician profile find karo
+
+        const user = await User.findById(req.user.id);
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found."
+            });
+        }
+
+        if (user.role !== "technician") {
+            return res.status(403).json({
+                success: false,
+                message: "Only technician can update job status."
+            });
+        }
 
         const technician = await Technician.findOne({
-            email: req.user.email
+            email: user.email
         });
 
         if (!technician) {
@@ -366,30 +380,36 @@ const updateTechnicianJobStatus = async (req, res) => {
             });
         }
 
-        // ==========================================
-        // 4. Only assigned technician can update
-        // ==========================================
-
-        if (
-            !booking.technician ||
-            booking.technician.toString() !== technician._id.toString()
-        ) {
+        // Check karo ki ye booking isi technician ko assigned hai
+        if (booking.technician.toString() !== technician._id.toString()) {
             return res.status(403).json({
                 success: false,
                 message: "You are not assigned to this booking."
             });
         }
 
-        // ==========================================
-        // 5. Status transition validation
-        // ==========================================
+        const { status } = req.body;
 
+        // Allowed status
+        const allowedStatuses = [
+            "Started",
+            "Completed"
+        ];
+
+        if (!allowedStatuses.includes(status)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid status. Use Started or Completed."
+            });
+        }
+
+        // Status flow control
         if (status === "Started") {
 
             if (booking.status !== "Technician Assigned") {
                 return res.status(400).json({
                     success: false,
-                    message: "Booking cannot be started in its current status."
+                    message: "Booking must be Technician Assigned before starting."
                 });
             }
 
@@ -400,23 +420,15 @@ const updateTechnicianJobStatus = async (req, res) => {
             if (booking.status !== "Started") {
                 return res.status(400).json({
                     success: false,
-                    message: "Booking must be started before completing."
+                    message: "Booking must be Started before completing."
                 });
             }
 
         }
 
-        // ==========================================
-        // 6. Update status
-        // ==========================================
-
         booking.status = status;
 
         await booking.save();
-
-        // ==========================================
-        // 7. Return updated booking
-        // ==========================================
 
         const updatedBooking = await Booking.findById(booking._id)
             .populate("user", "fullName email phone")
@@ -439,7 +451,6 @@ const updateTechnicianJobStatus = async (req, res) => {
         });
 
     }
-
 };
 
 const cancelBooking = async (req, res) => {
