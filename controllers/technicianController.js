@@ -239,7 +239,7 @@ const deleteTechnician = async (req, res) => {
 
 };
 
-const Booking = require("../models/Booking");
+
 
 const getAssignedJobs = async (req, res) => {
     try {
@@ -281,7 +281,10 @@ const getMyAssignedJobs = async (req, res) => {
 
     try {
 
-        // Logged-in technician ka User ID
+        // ==========================================
+        // 1. Logged-in User find karo
+        // ==========================================
+
         const user = await User.findById(req.user.id);
 
         if (!user) {
@@ -291,15 +294,21 @@ const getMyAssignedJobs = async (req, res) => {
             });
         }
 
-        // Check technician role
+        // ==========================================
+        // 2. Check user technician hai ya nahi
+        // ==========================================
+
         if (user.role !== "technician") {
             return res.status(403).json({
                 success: false,
-                message: "Only technicians can access assigned jobs."
+                message: "Only technician can access assigned jobs."
             });
         }
 
-        // User email se Technician profile find karo
+        // ==========================================
+        // 3. Technician profile find karo
+        // ==========================================
+
         const technician = await Technician.findOne({
             email: user.email
         });
@@ -311,12 +320,19 @@ const getMyAssignedJobs = async (req, res) => {
             });
         }
 
-        // Technician ki assigned bookings
+        // ==========================================
+        // 4. Technician ke assigned bookings find karo
+        // ==========================================
+
         const jobs = await Booking.find({
             technician: technician._id
         })
             .populate("service", "name price category duration image")
             .populate("user", "fullName email phone");
+
+        // ==========================================
+        // 5. Response
+        // ==========================================
 
         return res.status(200).json({
             success: true,
