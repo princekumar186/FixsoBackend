@@ -241,11 +241,19 @@ const deleteTechnician = async (req, res) => {
 const Booking = require("../models/Booking");
 
 const getAssignedJobs = async (req, res) => {
-
     try {
 
+        const technician = await Technician.findById(req.params.id);
+
+        if (!technician) {
+            return res.status(404).json({
+                success: false,
+                message: "Technician not found."
+            });
+        }
+
         const jobs = await Booking.find({
-            technician: req.params.id
+            technician: technician._id
         })
             .populate("service", "name price")
             .populate("user", "fullName phone");
@@ -258,15 +266,13 @@ const getAssignedJobs = async (req, res) => {
 
     } catch (error) {
 
-        console.error(error);
+        console.error("Get Assigned Jobs Error:", error);
 
         res.status(500).json({
             success: false,
             message: "Internal Server Error"
         });
-
     }
-
 };
 
 module.exports = {
