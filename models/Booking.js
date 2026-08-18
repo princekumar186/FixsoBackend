@@ -15,14 +15,14 @@ const bookingSchema = new mongoose.Schema({
     },
 
     technician: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Technician",
-    default: null
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Technician",
+        default: null
     },
 
     assignedAt: {
-    type: Date,
-    default: null
+        type: Date,
+        default: null
     },
 
     bookingDate: {
@@ -66,18 +66,18 @@ const bookingSchema = new mongoose.Schema({
     },
 
     status: {
-    type: String,
-    enum: [
-        "Pending",
-        "Accepted",
-        "Technician Assigned",
-        "On The Way",
-        "Started",
-        "Completed",
-        "Cancelled"
-    ],
-    default: "Pending"
-},
+        type: String,
+        enum: [
+            "Pending",
+            "Accepted",
+            "Technician Assigned",
+            "On The Way",
+            "Started",
+            "Completed",
+            "Cancelled"
+        ],
+        default: "Pending"
+    },
 
     paymentStatus: {
         type: String,
@@ -86,6 +86,15 @@ const bookingSchema = new mongoose.Schema({
             "Paid"
         ],
         default: "Pending"
+    },
+    razorpayOrderId: {
+        type: String,
+        default: ""
+    },
+
+    razorpayPaymentId: {
+        type: String,
+        default: ""
     }
 
 }, {
