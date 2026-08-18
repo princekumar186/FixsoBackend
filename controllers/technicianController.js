@@ -1,21 +1,102 @@
 const Technician = require("../models/Technician");
+const User = require("../models/User");
+const bcrypt = require("bcryptjs");
 
 // Add Technician
 const addTechnician = async (req, res) => {
 
     try {
 
-        const technician = await Technician.create(req.body);
+        const {
+            fullName,
+            email,
+            phone,
+            password,
+            specialization,
+            experience,
+            city,
+            profileImage
+        } = req.body;
 
-        res.status(201).json({
+        // ==============================
+        // 1. Check User already exists
+        // ==============================
+
+        const existingUser = await User.findOne({
+            $or: [
+                { email },
+                { phone }
+            ]
+        });
+
+        if (existingUser) {
+            return res.status(409).json({
+                success: false,
+                message: "Email or Phone already registered."
+            });
+        }
+
+        // ==============================
+        // 2. Hash Password
+        // ==============================
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // ==============================
+        // 3. Create User Account
+        // ==============================
+
+        const user = await User.create({
+            fullName,
+            email,
+            phone,
+            password: hashedPassword,
+            role: "technician",
+            profileImage: profileImage || ""
+        });
+
+        // ==============================
+        // 4. Create Technician Profile
+        // ==============================
+
+        const technician = await Technician.create({
+            fullName,
+            email,
+            phone,
+            specialization,
+            experience,
+            city,
+            profileImage: profileImage || ""
+        });
+
+        // ==============================
+        // 5. Success Response
+        // ==============================
+
+        return res.status(201).json({
             success: true,
             message: "Technician Added Successfully",
-            data: technician
+            data: {
+                technicianId: technician._id,
+                userId: user._id,
+                fullName: user.fullName,
+                email: user.email,
+                phone: user.phone,
+                role: user.role,
+                specialization: technician.specialization,
+                experience: technician.experience,
+                city: technician.city,
+                profileImage: technician.profileImage
+            }
         });
 
     } catch (error) {
 
-        console.error(error);
+        console.error("Add Technician Error:", error);
+
+        // ==============================
+        // Duplicate Key
+        // ==============================
 
         if (error.code === 11000) {
 
@@ -25,16 +106,13 @@ const addTechnician = async (req, res) => {
                 success: false,
                 message: `${field} already exists.`
             });
-
         }
 
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             message: "Internal Server Error"
         });
-
     }
-
 };
 
 // Get All Technicians
