@@ -11,6 +11,7 @@ const {
     updateBookingStatus,
     deleteBooking,
     assignTechnician,
+    updateTechnicianJobStatus,
     cancelBooking
 } = require("../controllers/bookingController");
 
@@ -65,6 +66,11 @@ router.put(
     protect,
     adminOnly,
     assignTechnician
+);
+router.put(
+    "/:id/technician-status",
+    protect,
+    updateTechnicianJobStatus
 );
 // Cancel Booking (Customer / Admin)
 router.put(

@@ -321,6 +321,127 @@ const assignTechnician = async (req, res) => {
 
 };
 
+const updateTechnicianJobStatus = async (req, res) => {
+
+    try {
+
+        const { status } = req.body;
+
+        // ==========================================
+        // 1. Only allowed statuses
+        // ==========================================
+
+        if (!["Started", "Completed"].includes(status)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid job status."
+            });
+        }
+
+        // ==========================================
+        // 2. Find booking
+        // ==========================================
+
+        const booking = await Booking.findById(req.params.id);
+
+        if (!booking) {
+            return res.status(404).json({
+                success: false,
+                message: "Booking not found."
+            });
+        }
+
+        // ==========================================
+        // 3. Check technician assignment
+        // ==========================================
+
+        const technician = await Technician.findOne({
+            email: req.user.email
+        });
+
+        if (!technician) {
+            return res.status(404).json({
+                success: false,
+                message: "Technician profile not found."
+            });
+        }
+
+        // ==========================================
+        // 4. Only assigned technician can update
+        // ==========================================
+
+        if (
+            !booking.technician ||
+            booking.technician.toString() !== technician._id.toString()
+        ) {
+            return res.status(403).json({
+                success: false,
+                message: "You are not assigned to this booking."
+            });
+        }
+
+        // ==========================================
+        // 5. Status transition validation
+        // ==========================================
+
+        if (status === "Started") {
+
+            if (booking.status !== "Technician Assigned") {
+                return res.status(400).json({
+                    success: false,
+                    message: "Booking cannot be started in its current status."
+                });
+            }
+
+        }
+
+        if (status === "Completed") {
+
+            if (booking.status !== "Started") {
+                return res.status(400).json({
+                    success: false,
+                    message: "Booking must be started before completing."
+                });
+            }
+
+        }
+
+        // ==========================================
+        // 6. Update status
+        // ==========================================
+
+        booking.status = status;
+
+        await booking.save();
+
+        // ==========================================
+        // 7. Return updated booking
+        // ==========================================
+
+        const updatedBooking = await Booking.findById(booking._id)
+            .populate("user", "fullName email phone")
+            .populate("service", "name category price image duration")
+            .populate("technician", "fullName phone specialization");
+
+        return res.status(200).json({
+            success: true,
+            message: `Booking status updated to ${status}`,
+            data: updatedBooking
+        });
+
+    } catch (error) {
+
+        console.error("Update Technician Job Status Error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Internal Server Error"
+        });
+
+    }
+
+};
+
 const cancelBooking = async (req, res) => {
 
     try {
@@ -424,5 +545,6 @@ module.exports = {
     updateBookingStatus,
     deleteBooking,
     assignTechnician,
+    updateTechnicianJobStatus,
     cancelBooking
 };
