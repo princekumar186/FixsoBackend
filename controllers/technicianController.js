@@ -1,6 +1,7 @@
 const Technician = require("../models/Technician");
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
+const Booking = require("../models/Booking");
 
 // Add Technician
 const addTechnician = async (req, res) => {
@@ -275,11 +276,73 @@ const getAssignedJobs = async (req, res) => {
     }
 };
 
+// Get My Assigned Jobs - Technician
+const getMyAssignedJobs = async (req, res) => {
+
+    try {
+
+        // Logged-in technician ka User ID
+        const user = await User.findById(req.user.id);
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found."
+            });
+        }
+
+        // Check technician role
+        if (user.role !== "technician") {
+            return res.status(403).json({
+                success: false,
+                message: "Only technicians can access assigned jobs."
+            });
+        }
+
+        // User email se Technician profile find karo
+        const technician = await Technician.findOne({
+            email: user.email
+        });
+
+        if (!technician) {
+            return res.status(404).json({
+                success: false,
+                message: "Technician profile not found."
+            });
+        }
+
+        // Technician ki assigned bookings
+        const jobs = await Booking.find({
+            technician: technician._id
+        })
+            .populate("service", "name price category duration image")
+            .populate("user", "fullName email phone");
+
+        return res.status(200).json({
+            success: true,
+            count: jobs.length,
+            data: jobs
+        });
+
+    } catch (error) {
+
+        console.error("Get My Assigned Jobs Error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Internal Server Error"
+        });
+
+    }
+
+};
+
 module.exports = {
     addTechnician,
     getAllTechnicians,
     getTechnicianById,
     updateTechnician,
     deleteTechnician,
-    getAssignedJobs
+    getAssignedJobs,
+    getMyAssignedJobs
 };

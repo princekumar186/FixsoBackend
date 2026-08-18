@@ -16,7 +16,8 @@ const {
     getTechnicianById,
     updateTechnician,
     deleteTechnician,
-    getAssignedJobs
+    getAssignedJobs,
+    getMyAssignedJobs
 } = require("../controllers/technicianController");
 
 // =============================
@@ -34,6 +35,14 @@ const {
  *         description: List of technicians
  */
 router.get("/", getAllTechnicians);
+
+
+// Get My Assigned Jobs
+router.get(
+    "/my-jobs",
+    protect,
+    getMyAssignedJobs
+);
 
 /**
  * @swagger
