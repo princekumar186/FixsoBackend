@@ -1,13 +1,14 @@
 const crypto = require("crypto");
+
 const Booking = require("../models/Booking");
 const razorpay = require("../utils/razorpay");
 
-// ==========================================
-// Create Razorpay Order
-// ==========================================
+// =====================================================
+// CREATE RAZORPAY ORDER
+// POST /api/payment/create-order
+// =====================================================
 
 const createOrder = async (req, res) => {
-
     try {
 
         const { bookingId } = req.body;
@@ -24,7 +25,7 @@ const createOrder = async (req, res) => {
         }
 
         // ==========================================
-        // 2. Find Booking
+        // 2. Find booking
         // ==========================================
 
         const booking = await Booking.findById(bookingId);
@@ -37,13 +38,10 @@ const createOrder = async (req, res) => {
         }
 
         // ==========================================
-        // 3. User can pay only own booking
+        // 3. Check booking belongs to logged-in user
         // ==========================================
 
-        if (
-            booking.user.toString() !== req.user.id &&
-            req.user.role !== "admin"
-        ) {
+        if (booking.user.toString() !== req.user.id.toString()) {
             return res.status(403).json({
                 success: false,
                 message: "You are not allowed to pay for this booking."
@@ -51,34 +49,32 @@ const createOrder = async (req, res) => {
         }
 
         // ==========================================
-        // 4. Booking must be Completed
-        // ==========================================
-
-        if (booking.status !== "Completed") {
-            return res.status(400).json({
-                success: false,
-                message: "Payment is allowed only after booking completion."
-            });
-        }
-
-        // ==========================================
-        // 5. Already Paid
+        // 4. Payment already completed?
         // ==========================================
 
         if (booking.paymentStatus === "Paid") {
             return res.status(400).json({
                 success: false,
-                message: "Booking is already paid."
+                message: "Payment is already completed for this booking."
             });
         }
 
         // ==========================================
-        // 6. Amount from Database
+        // 5. Job must be completed
         // ==========================================
 
-        const amount = booking.totalAmount;
+        if (booking.status !== "Completed") {
+            return res.status(400).json({
+                success: false,
+                message: "Payment can only be made after the job is completed."
+            });
+        }
 
-        if (!amount || amount <= 0) {
+        // ==========================================
+        // 6. Amount validation
+        // ==========================================
+
+        if (!booking.totalAmount || booking.totalAmount <= 0) {
             return res.status(400).json({
                 success: false,
                 message: "Invalid booking amount."
@@ -86,11 +82,11 @@ const createOrder = async (req, res) => {
         }
 
         // ==========================================
-        // 7. Create Razorpay Order
+        // 7. Razorpay Order
         // ==========================================
 
         const options = {
-            amount: Math.round(amount * 100),
+            amount: Math.round(booking.totalAmount * 100),
             currency: "INR",
             receipt: `booking_${booking._id}`
         };
@@ -116,7 +112,8 @@ const createOrder = async (req, res) => {
                 orderId: order.id,
                 amount: order.amount,
                 currency: order.currency,
-                bookingId: booking._id
+                bookingId: booking._id,
+                totalAmount: booking.totalAmount
             }
         });
 
@@ -128,18 +125,16 @@ const createOrder = async (req, res) => {
             success: false,
             message: "Payment Order Creation Failed"
         });
-
     }
-
 };
 
 
-// ==========================================
-// Verify Razorpay Payment
-// ==========================================
+// =====================================================
+// VERIFY RAZORPAY PAYMENT
+// POST /api/payment/verify
+// =====================================================
 
 const verifyPayment = async (req, res) => {
-
     try {
 
         const {
@@ -161,12 +156,12 @@ const verifyPayment = async (req, res) => {
         ) {
             return res.status(400).json({
                 success: false,
-                message: "All payment details are required."
+                message: "All payment verification fields are required."
             });
         }
 
         // ==========================================
-        // 2. Find Booking
+        // 2. Find booking
         // ==========================================
 
         const booking = await Booking.findById(bookingId);
@@ -179,36 +174,22 @@ const verifyPayment = async (req, res) => {
         }
 
         // ==========================================
-        // 3. User can pay only own booking
+        // 3. Check booking belongs to logged-in user
         // ==========================================
 
-        if (
-            booking.user.toString() !== req.user.id &&
-            req.user.role !== "admin"
-        ) {
+        if (booking.user.toString() !== req.user.id.toString()) {
             return res.status(403).json({
                 success: false,
-                message: "You are not allowed to pay for this booking."
+                message: "You are not allowed to verify payment for this booking."
             });
         }
 
         // ==========================================
-        // 4. Already Paid
-        // ==========================================
-
-        if (booking.paymentStatus === "Paid") {
-            return res.status(400).json({
-                success: false,
-                message: "Booking is already paid."
-            });
-        }
-
-        // ==========================================
-        // 5. Check Razorpay Order ID
+        // 4. Check Razorpay order ID
         // ==========================================
 
         if (
-            !booking.razorpayOrderId ||
+            booking.razorpayOrderId &&
             booking.razorpayOrderId !== razorpay_order_id
         ) {
             return res.status(400).json({
@@ -218,7 +199,7 @@ const verifyPayment = async (req, res) => {
         }
 
         // ==========================================
-        // 6. Verify Razorpay Signature
+        // 5. Generate expected signature
         // ==========================================
 
         const body =
@@ -232,32 +213,54 @@ const verifyPayment = async (req, res) => {
             .update(body)
             .digest("hex");
 
+        // ==========================================
+        // 6. Compare signature
+        // ==========================================
+
         if (expectedSignature !== razorpay_signature) {
 
             return res.status(400).json({
                 success: false,
                 message: "Invalid Payment Signature."
             });
-
         }
 
         // ==========================================
-        // 7. Payment Successful
+        // 7. Already paid check
+        // ==========================================
+
+        if (booking.paymentStatus === "Paid") {
+
+            return res.status(400).json({
+                success: false,
+                message: "Payment is already completed."
+            });
+        }
+
+        // ==========================================
+        // 8. Update payment
         // ==========================================
 
         booking.paymentStatus = "Paid";
+        booking.razorpayOrderId = razorpay_order_id;
         booking.razorpayPaymentId = razorpay_payment_id;
 
         await booking.save();
 
         // ==========================================
-        // 8. Response
+        // 9. Response
         // ==========================================
 
         return res.status(200).json({
             success: true,
             message: "Payment Verified Successfully",
-            data: booking
+            data: {
+                bookingId: booking._id,
+                paymentStatus: booking.paymentStatus,
+                razorpayOrderId: booking.razorpayOrderId,
+                razorpayPaymentId: booking.razorpayPaymentId,
+                totalAmount: booking.totalAmount
+            }
         });
 
     } catch (error) {
@@ -268,9 +271,7 @@ const verifyPayment = async (req, res) => {
             success: false,
             message: "Payment Verification Failed"
         });
-
     }
-
 };
 
 
