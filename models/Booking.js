@@ -89,13 +89,13 @@ const bookingSchema = new mongoose.Schema({
     },
     razorpayOrderId: {
         type: String,
-        default: ""
+        default: null
     },
 
     razorpayPaymentId: {
         type: String,
-        default: ""
-    }
+        default: null
+    },
 
 }, {
     timestamps: true
