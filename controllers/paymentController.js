@@ -36,7 +36,10 @@ const createOrder = async (req, res) => {
                 message: "Booking not found."
             });
         }
-
+        console.log("========== PAYMENT DEBUG ==========");
+        console.log("Booking User:", booking.user.toString());
+        console.log("Token User:", req.user.id.toString());
+        console.log("Token Role:", req.user.role);
         // ==========================================
         // 3. Check booking belongs to logged-in user
         // ==========================================
