@@ -40,6 +40,7 @@ const createOrder = async (req, res) => {
         console.log("Booking User:", booking.user.toString());
         console.log("Token User:", req.user.id.toString());
         console.log("Token Role:", req.user.role);
+
         // ==========================================
         // 3. Check booking belongs to logged-in user
         // ==========================================
@@ -122,11 +123,16 @@ const createOrder = async (req, res) => {
 
     } catch (error) {
 
-        console.error("Create Payment Order Error:", error);
+        console.error("========== RAZORPAY ERROR ==========");
+        console.error("Message:", error.message);
+        console.error("Response:", error.response?.data);
+        console.error("Status:", error.response?.status);
+        console.error("Stack:", error.stack);
 
         return res.status(500).json({
             success: false,
-            message: "Payment Order Creation Failed"
+            message: "Payment Order Creation Failed",
+            error: error.message
         });
     }
 };
