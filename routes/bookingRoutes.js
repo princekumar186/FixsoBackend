@@ -37,6 +37,11 @@ router.get(
     getAllBookings
 );
 
+router.get("/my-bookings", 
+    protect, 
+    getMyBookings
+);
+
 // Get Booking By ID (Logged In User)
 router.get(
     "/:id",

@@ -124,15 +124,16 @@ const createOrder = async (req, res) => {
     } catch (error) {
 
         console.error("========== RAZORPAY ERROR ==========");
-        console.error("Message:", error.message);
-        console.error("Response:", error.response?.data);
-        console.error("Status:", error.response?.status);
-        console.error("Stack:", error.stack);
+
+        console.error("ERROR:", error);
+        console.error("MESSAGE:", error?.message);
+        console.error("RESPONSE:", error?.response?.data);
+        console.error("STATUS:", error?.statusCode);
+        console.error("DESCRIPTION:", error?.error?.description);
 
         return res.status(500).json({
             success: false,
-            message: "Payment Order Creation Failed",
-            error: error.message
+            message: "Payment Order Creation Failed"
         });
     }
 };
